@@ -5,7 +5,6 @@ import pandas as pd
 from datetime import datetime
 import base64
 import warnings
-from time import sleep
 
 # Ignore warnings for simplicity
 warnings.filterwarnings("ignore")
@@ -68,42 +67,32 @@ court_name_to_id = {v: k for k, v in court_names.items()}
 court_name = st.selectbox("Select Court Name", options=list(court_name_to_id.keys()))
 court_id = court_name_to_id[court_name] if court_name else None
 
-# Function to fetch table data from the Supreme Court website
+# Function to fetch table data from Supreme Court website
 def get_table_data(start_date, end_date, court_type, court_id):
     all_data = []
-    date_range = pd.date_range(start=start_date, end=end_date)
-    
-    with st.spinner('Fetching data...'):
-        for faisala_date in st.progress(date_range):
-            faisala_date_str = faisala_date.strftime('%Y-%m-%d')
-            url = 'https://supremecourt.gov.np/cp/'
-            form_data = {
-                'court_type': court_type,
-                'court_id': court_id,
-                'regno': '',
-                'darta_date': '',
-                'faisala_date': faisala_date_str,
-                'submit': ''
-            }
-            try:
-                response = requests.post(url, data=form_data, verify=False)
-                response.raise_for_status()
-            except requests.RequestException:
-                continue
 
-            soup = BeautifulSoup(response.content, 'html.parser')
-            table = soup.find('table')
-            if not table:
-                continue
+    # Generate date range based on input dates
+    date_range = pd.date_range(start=start_date, end=end_date, freq='D').strftime('%Y-%m-%d')
 
-            rows = table.find_all('tr')
-            table_data = []
-            for row in rows[1:]:
-                cols = row.find_all('td')
-                cols = [col.text.strip() for col in cols]
-                table_data.append(cols)
-            all_data.extend(table_data)
-    
+    # Iterate through each date in the range and fetch data
+    for date_str in date_range:
+        url = f"http://supremecourt.gov.np/site/case_list.php?date={date_str}&courtid={court_id}&type={court_type}"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Find the table containing the data
+        table = soup.find('table', class_='table')
+        if not table:
+            continue
+
+        rows = table.find_all('tr')
+        table_data = []
+        for row in rows[1:]:
+            cols = row.find_all('td')
+            cols = [col.text.strip() for col in cols]
+            table_data.append(cols)
+        all_data.extend(table_data)
+
     return all_data
 
 # Validate and process data on button click
@@ -116,7 +105,8 @@ if st.button("Generate Report"):
         try:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-            table_data = get_table_data(start_date, end_date, court_type, court_id)
+            with st.spinner("Fetching data..."):
+                table_data = get_table_data(start_date, end_date, court_type, court_id)
             if table_data:
                 df = pd.DataFrame(table_data)
                 df.columns = ["क्र.सं.", "दर्ता नं.", "मुद्दा नं.", "दर्ता मिति", "मुद्दाको किसिम", "मुद्दाको नाम", "वादी", "प्रतिबादी", "फैसला मिति", "पूर्ण पाठ"]
