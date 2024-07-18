@@ -9,8 +9,21 @@ import warnings
 # Ignore warnings for simplicity
 warnings.filterwarnings("ignore")
 
-# Define the court list
-court_map = {
+# Streamlit UI
+st.title('Supreme Court Data Scraper')
+
+# Input fields for start date, end date, court type, and court ID
+start_date_str = st.text_input("Enter Start Date (YYYY-MM-DD, BS)")
+end_date_str = st.text_input("Enter End Date (YYYY-MM-DD, BS)")
+
+court_type_display_map = {
+    'S': 'सर्वोच्च अदालत',
+    'A': 'उच्च अदालत',
+    'D': 'जिल्ला अदालत',
+    'T': 'बिषेश अदालत'
+}
+
+court_names = {
     'S': {'264': 'सर्वोच्च अदालत'},
     'A': {
         '4': 'जनकपुर', '91': 'जनकपुर, वीरगन्ज', '3': 'जनकपुर, राजविराज', '10': 'तुलसीपुर', 
@@ -38,34 +51,9 @@ court_map = {
     'T': {'116': 'बिषेश अदालत'}
 }
 
-court_type_display_map = {
-    'S': 'सर्वोच्च अदालत',
-    'A': 'उच्च अदालत',
-    'D': 'जिल्ला अदालत',
-    'T': 'बिषेश अदालत'
-}
-
 # Helper function to get court names based on court type
 def get_court_names(court_type):
-    return court_map.get(court_type, {})
-
-# Streamlit UI
-st.title('Supreme Court Data Scraper')
-
-# Input fields for start date, end date, court type, and court ID
-start_date_str = st.text_input("Enter Start Date (YYYY-MM-DD, BS)")
-end_date_str = st.text_input("Enter End Date (YYYY-MM-DD, BS)")
-
-court_type_display = st.selectbox("Select Court Type", options=list(court_type_display_map.values()))
-
-# Get the actual court type key based on display name
-court_type = [key for key, value in court_type_display_map.items() if value == court_type_display][0]
-
-# Display court names based on selected court type
-court_names = get_court_names(court_type)
-court_name_to_id = {v: k for k, v in court_names.items()}
-court_name = st.selectbox("Select Court Name", options=list(court_name_to_id.keys()))
-court_id = court_name_to_id[court_name] if court_name else None
+    return court_names.get(court_type, {})
 
 # Function to fetch table data from Supreme Court website
 def get_table_data(start_date, end_date, court_type, court_id):
@@ -77,21 +65,24 @@ def get_table_data(start_date, end_date, court_type, court_id):
     # Iterate through each date in the range and fetch data
     for date_str in date_range:
         url = f"http://supremecourt.gov.np/site/case_list.php?date={date_str}&courtid={court_id}&type={court_type}"
-        response = requests.get(url)
-        soup = BeautifulSoup(response.content, 'html.parser')
+        try:
+            response = requests.get(url, verify=False)
+            soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Find the table containing the data
-        table = soup.find('table', class_='table')
-        if not table:
-            continue
+            # Find the table containing the data
+            table = soup.find('table', class_='table')
+            if not table:
+                continue
 
-        rows = table.find_all('tr')
-        table_data = []
-        for row in rows[1:]:
-            cols = row.find_all('td')
-            cols = [col.text.strip() for col in cols]
-            table_data.append(cols)
-        all_data.extend(table_data)
+            rows = table.find_all('tr')
+            table_data = []
+            for row in rows[1:]:
+                cols = row.find_all('td')
+                cols = [col.text.strip() for col in cols]
+                table_data.append(cols)
+            all_data.extend(table_data)
+        except Exception as e:
+            st.error(f"Error fetching data for date {date_str}: {str(e)}")
 
     return all_data
 
@@ -99,12 +90,11 @@ def get_table_data(start_date, end_date, court_type, court_id):
 if st.button("Generate Report"):
     if not start_date_str or not end_date_str:
         st.warning("Please enter both start and end dates.")
-    elif not court_type or not court_id:
-        st.warning("Please select both court type and court name.")
     else:
         try:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            court_id = st.selectbox("Select Court Name", options=list(get_court_names(court_type).items()))
             with st.spinner("Fetching data..."):
                 table_data = get_table_data(start_date, end_date, court_type, court_id)
             if table_data:
@@ -117,7 +107,7 @@ if st.button("Generate Report"):
                 b64 = base64.b64encode(excel_bytes).decode()
                 href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="court_data.xlsx">Download Excel file</a>'
                 st.markdown(href, unsafe_allow_html=True)
-                
+
             else:
                 st.warning("No data found for the specified date range and court parameters.")
         except ValueError:
