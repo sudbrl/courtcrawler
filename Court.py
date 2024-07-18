@@ -4,13 +4,16 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 import base64
+import warnings
 
-# Streamlit UI
-st.title('Supreme Court Data Scraper')
+# Ignore warnings for simplicity
+warnings.filterwarnings("ignore")
 
 # Define the court list
 court_map = {
-    'S': {'264': 'सर्वोच्च अदालत'},
+    'S': {
+        '264': 'सर्वोच्च अदालत'
+    },
     'A': {
         '4': 'उच्च अदालत जनकपुर',
         '91': 'उच्च अदालत जनकपुर, अस्थायी इजलास वीरगन्ज',
@@ -77,94 +80,135 @@ court_map = {
         '41': 'बांके जिल्ला अदालत',
         '82': 'बाग्लुंग जिल्ला अदालत',
         '32': 'बाजुरा जिल्ला अदालत',
-        '25': 'बारा जिल्ला अदालत',
-        '55': 'बार्दिया जिल्ला अदालत',
-        '78': 'भक्तपुर जिल्ला अदालत',
-        '71': 'भोजपुर जिल्ला अदालत',
-        '46': 'मकवानपुर जिल्ला अदालत',
-        '67': 'महोत्तरी जिल्ला अदालत',
-        '88': 'मोरङ जिल्ला अदालत',
-        '69': 'मूलतानी जिल्ला अदालत',
+        '63': 'बारा जिल्ला अदालत',
+        '39': 'बैतडी जिल्ला अदालत',
+        '69': 'भक्तपुर जिल्ला अदालत',
+        '48': 'भोजपुर जिल्ला अदालत',
+        '62': 'मकवानपुर जिल्ला अदालत',
+        '80': 'मनांग जिल्ला अदालत',
+        '58': 'महोत्तरी जिल्ला अदालत',
         '27': 'मुगु जिल्ला अदालत',
-        '62': 'मुस्ताङ जिल्ला अदालत',
-        '26': 'मैल्ला जिल्ला अदालत',
-        '59': 'मोरंग जिल्ला अदालत',
-        '39': 'रामेछाप जिल्ला अदालत',
-        '22': 'रासुवा जिल्ला अदालत',
-        '21': 'रौतहट जिल्ला अदालत',
-        '74': 'रूपन्देही जिल्ला अदालत',
-        '60': 'लालितपुर जिल्ला अदालत',
-        '79': 'लमजुंग जिल्ला अदालत',
-        '65': 'लिखुपिया जिल्ला अदालत',
-        '56': 'वैतडा जिल्ला अदालत',
-        '63': 'सप्तरी जिल्ला अदालत',
-        '17': 'सर्लाही जिल्ला अदालत',
-        '76': 'सिन्धुली जिल्ला अदालत',
-        '48': 'सिरहा जिल्ला अदालत',
+        '79': 'मुस्तांग जिल्ला अदालत',
+        '16': 'मोरंग जिल्ला अदालत',
+        '81': 'म्याग्दी जिल्ला अदालत',
+        '74': 'रसुवा जिल्ला अदालत',
+        '65': 'रामेछाप जिल्ला अदालत',
+        '22': 'रुकुम जिल्ला अदालत',
+        '494': 'रुकुमकोट जिल्ला अदालत',
+        '88': 'रुपन्देही जिल्ला अदालत',
+        '21': 'रोल्पा जिल्ला अदालत',
+        '60': 'रौतहट जिल्ला अदालत',
+        '76': 'लमजुङ्ग जिल्ला अदालत',
+        '71': 'ललितपुर जिल्ला अदालत',
+        '46': 'संखुवासभा जिल्ला अदालत',
+        '55': 'सप्तरी जिल्ला अदालत',
+        '59': 'सर्लाही जिल्ला अदालत',
+        '20': 'सल्यान जिल्ला अदालत',
+        '67': 'सिन्धुपाल्चोक जिल्ला अदालत',
+        '56': 'सिन्धुली जिल्ला अदालत',
+        '54': 'सिराहा जिल्ला अदालत',
+        '17': 'सुनसरी जिल्ला अदालत',
+        '25': 'सुर्खेत जिल्ला अदालत',
         '50': 'सोलुखुम्बु जिल्ला अदालत',
-        '81': 'सोलुकुम्बु जिल्ला अदालत',
-        '80': 'सोलुकुम्बु जिल्ला अदालत',
-        '54': 'सुर्खेत जिल्ला अदालत',
-        '16': 'स्याङ्जा जिल्ला अदालत',
-        '58': 'हुम्ला जिल्ला अदालत',
-        '90': 'सागरमाथा जिल्ला अदालत',
-        '91': 'अस्थायी इजलास जनकपुर',
-        '92': 'अस्थायी इजलास जनकपुर',
-        '93': 'अस्थायी इजलास जनकपुर',
-        '94': 'अस्थायी इजलास जनकपुर',
-        '95': 'अस्थायी इजलास जनकपुर',
-        '98': 'अस्थायी इजलास दिपायल',
-        '99': 'अस्थायी इजलास पोखरा',
-        '100': 'अस्थायी इजलास सुर्खेत'
+        '78': 'स्यांग्जा जिल्ला अदालत',
+        '26': 'हुम्ला जिल्ला अदालत'
+    },
+    'T': {
+        '116': 'बिषेश अदालत'
     }
 }
 
-# Function to scrape data
-def scrape_supreme_court_data(court_type, court_id):
-    url = f'https://www.supremecourt.gov.np/web/{court_type}/{court_id}/'
-    with st.spinner(f'Scraping data from {court_map[court_type][court_id]}...'):
-        response = requests.get(url, verify=True)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            data_table = soup.find('table')
-            if data_table:
-                # Parse HTML table into DataFrame
-                df = pd.read_html(str(data_table))[0]
-                return df
-    return None
+# Mapping for display names
+court_type_display_map = {
+    'S': 'सर्वोच्च अदालत',
+    'A': 'उच्च अदालत',
+    'D': 'जिल्ला अदालत',
+    'T': 'बिषेश अदालत'
+}
 
-# Function to generate Excel report
-def generate_excel_report(dataframes):
-    with st.spinner('Generating Excel report...'):
-        with pd.ExcelWriter('supreme_court_data.xlsx') as writer:
-            for court_type, courts in dataframes.items():
-                for court_id, df in courts.items():
-                    sheet_name = f'{court_map[court_type][court_id]}'
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+# Helper function to get court names based on court type
+def get_court_names(court_type):
+    if court_type in court_map:
+        return court_map[court_type]
+    return {}
 
-# Main app logic
-def main():
-    court_type = st.selectbox('Select Court Type', list(court_map.keys()))
-    court_ids = court_map[court_type]
-    court_id = st.selectbox('Select Court', list(court_ids.keys()))
+# Streamlit UI
+st.title('Supreme Court Data Scraper')
 
-    if st.button('Scrape Data'):
-        data = scrape_supreme_court_data(court_type, court_id)
-        
-        if data is not None:
-            st.write('Data scraped successfully!')
-            st.write(data.head())  # Displaying first few rows of data
-            dataframes = {court_type: {court_id: data}}
-            generate_excel_report(dataframes)
-            st.success('Excel report generated. Click below to download.')
+# Input fields for start date, end date, court type, and court ID
+start_date_str = st.text_input("Enter Start Date (YYYY-MM-DD, BS)")
+end_date_str = st.text_input("Enter End Date (YYYY-MM-DD, BS)")
 
-            # Create download link for the Excel file
-            excel_file = open('supreme_court_data.xlsx', 'rb').read()
-            b64 = base64.b64encode(excel_file).decode()
-            href = f'<a href="data:file/xlsx;base64,{b64}" download="supreme_court_data.xlsx">Download Excel File</a>'
-            st.markdown(href, unsafe_allow_html=True)
-        else:
-            st.error('Failed to scrape data. Please try again.')
+court_type_display = st.selectbox("Select Court Type", options=list(court_type_display_map.values()))
 
-if __name__ == "__main__":
-    main()
+# Get the actual court type key based on display name
+court_type = [key for key, value in court_type_display_map.items() if value == court_type_display][0]
+
+# Display court names based on selected court type
+court_names = get_court_names(court_type)
+court_name_to_id = {v: k for k, v in court_names.items()}
+court_name = st.selectbox("Select Court Name", options=list(court_name_to_id.keys()))
+court_id = court_name_to_id[court_name] if court_name else None
+
+# Function to fetch table data from the Supreme Court website
+def get_table_data(start_date, end_date, court_type, court_id):
+    all_data = []
+    date_range = pd.date_range(start=start_date, end=end_date)
+    for faisala_date in date_range:
+        faisala_date_str = faisala_date.strftime('%Y-%m-%d')
+        url = 'https://supremecourt.gov.np/cp/'
+        form_data = {
+            'court_type': court_type,
+            'court_id': court_id,
+            'regno': '',
+            'darta_date': '',
+            'faisala_date': faisala_date_str,
+            'submit': ''
+        }
+        try:
+            response = requests.post(url, data=form_data, verify=False)
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        table = soup.find('table')
+        if not table:
+            continue
+
+        rows = table.find_all('tr')
+        table_data = []
+        for row in rows[1:]:
+            cols = row.find_all('td')
+            cols = [col.text.strip() for col in cols]
+            table_data.append(cols)
+        all_data.extend(table_data)
+    return all_data
+
+
+# Validate and process data on button click
+if st.button("Generate Report"):
+    if not start_date_str or not end_date_str:
+        st.warning("Please enter both start and end dates.")
+    elif not court_type or not court_id:
+        st.warning("Please select both court type and court name.")
+    else:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            table_data = get_table_data(start_date, end_date, court_type, court_id)
+            if table_data:
+                df = pd.DataFrame(table_data)
+                df.columns = ["क्र.सं.", "दर्ता नं.", "मुद्दा नं.", "दर्ता मिति", "मुद्दाको किसिम", "मुद्दाको नाम", "वादी", "प्रतिबादी", "फैसला मिति", "पूर्ण पाठ"]
+                excel_file_path = "supreme_court_data.xlsx"
+                df.to_excel(excel_file_path, index=False)
+                with open(excel_file_path, 'rb') as f:
+                    excel_bytes = f.read()
+                b64 = base64.b64encode(excel_bytes).decode()
+                href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="court_data.xlsx">Download Excel file</a>'
+                st.markdown(href, unsafe_allow_html=True)
+                
+            else:
+                st.warning("No data found for the specified date range and court parameters.")
+        except ValueError:
+            st.error("Invalid date format. Please enter dates in YYYY-MM-DD format.")
