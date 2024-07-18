@@ -72,44 +72,38 @@ court_id = court_name_to_id[court_name] if court_name else None
 def get_table_data(start_date, end_date, court_type, court_id):
     all_data = []
     date_range = pd.date_range(start=start_date, end=end_date)
-    progress = 0
-    progress_bar = st.progress(progress)
     
-    for faisala_date in date_range:
-        progress += 1 / len(date_range)
-        progress_bar.progress(progress)
-        sleep(0.1)  # Simulate work being done
-        
-        faisala_date_str = faisala_date.strftime('%Y-%m-%d')
-        url = 'https://supremecourt.gov.np/cp/'
-        form_data = {
-            'court_type': court_type,
-            'court_id': court_id,
-            'regno': '',
-            'darta_date': '',
-            'faisala_date': faisala_date_str,
-            'submit': ''
-        }
-        try:
-            response = requests.post(url, data=form_data, verify=False)
-            response.raise_for_status()
-        except requests.RequestException:
-            continue
+    with st.spinner('Fetching data...'):
+        for faisala_date in st.progress(date_range):
+            faisala_date_str = faisala_date.strftime('%Y-%m-%d')
+            url = 'https://supremecourt.gov.np/cp/'
+            form_data = {
+                'court_type': court_type,
+                'court_id': court_id,
+                'regno': '',
+                'darta_date': '',
+                'faisala_date': faisala_date_str,
+                'submit': ''
+            }
+            try:
+                response = requests.post(url, data=form_data, verify=False)
+                response.raise_for_status()
+            except requests.RequestException:
+                continue
 
-        soup = BeautifulSoup(response.content, 'html.parser')
-        table = soup.find('table')
-        if not table:
-            continue
+            soup = BeautifulSoup(response.content, 'html.parser')
+            table = soup.find('table')
+            if not table:
+                continue
 
-        rows = table.find_all('tr')
-        table_data = []
-        for row in rows[1:]:
-            cols = row.find_all('td')
-            cols = [col.text.strip() for col in cols]
-            table_data.append(cols)
-        all_data.extend(table_data)
+            rows = table.find_all('tr')
+            table_data = []
+            for row in rows[1:]:
+                cols = row.find_all('td')
+                cols = [col.text.strip() for col in cols]
+                table_data.append(cols)
+            all_data.extend(table_data)
     
-    progress_bar.empty()
     return all_data
 
 # Validate and process data on button click
