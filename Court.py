@@ -199,7 +199,7 @@ if st.button("Generate Report"):
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
 
-            # Display a spinner during data fetching
+            # Use Streamlit's asyncio feature to fetch data and show spinner
             with st.spinner("Fetching data..."):
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
