@@ -1,5 +1,6 @@
 import streamlit as st
-import requests
+import aiohttp
+import asyncio
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
@@ -150,41 +151,42 @@ court_name_to_id = {v: k for k, v in court_names.items()}
 court_name = st.selectbox("Select Court Name", options=list(court_name_to_id.keys()))
 court_id = court_name_to_id[court_name] if court_name else None
 
-# Function to fetch table data from the Supreme Court website
-def get_table_data(start_date, end_date, court_type, court_id):
-    all_data = []
-    date_range = pd.date_range(start=start_date, end=end_date)
-    for faisala_date in date_range:
-        faisala_date_str = faisala_date.strftime('%Y-%m-%d')
-        url = 'https://supremecourt.gov.np/cp/'
-        form_data = {
-            'court_type': court_type,
-            'court_id': court_id,
-            'regno': '',
-            'darta_date': '',
-            'faisala_date': faisala_date_str,
-            'submit': ''
-        }
-        try:
-            response = requests.post(url, data=form_data, verify=False)
-            response.raise_for_status()
-        except requests.RequestException:
-            continue
+# Function to fetch table data from the Supreme Court website asynchronously
+async def fetch_data(session, date, court_type, court_id):
+    url = 'https://supremecourt.gov.np/cp/'
+    form_data = {
+        'court_type': court_type,
+        'court_id': court_id,
+        'regno': '',
+        'darta_date': '',
+        'faisala_date': date,
+        'submit': ''
+    }
+    async with session.post(url, data=form_data) as response:
+        if response.status == 200:
+            content = await response.text()
+            soup = BeautifulSoup(content, 'html.parser')
+            table = soup.find('table')
+            if table:
+                rows = table.find_all('tr')
+                table_data = []
+                for row in rows[1:]:
+                    cols = row.find_all('td')
+                    cols = [col.text.strip() for col in cols]
+                    table_data.append(cols)
+                return table_data
+        return []
 
-        soup = BeautifulSoup(response.content, 'html.parser')
-        table = soup.find('table')
-        if not table:
-            continue
-
-        rows = table.find_all('tr')
-        table_data = []
-        for row in rows[1:]:
-            cols = row.find_all('td')
-            cols = [col.text.strip() for col in cols]
-            table_data.append(cols)
-        all_data.extend(table_data)
-    return all_data
-
+async def get_table_data(start_date, end_date, court_type, court_id):
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        date_range = pd.date_range(start=start_date, end=end_date)
+        for faisala_date in date_range:
+            faisala_date_str = faisala_date.strftime('%Y-%m-%d')
+            tasks.append(fetch_data(session, faisala_date_str, court_type, court_id))
+        results = await asyncio.gather(*tasks)
+        all_data = [item for sublist in results for item in sublist]
+        return all_data
 
 # Validate and process data on button click
 if st.button("Generate Report"):
@@ -196,7 +198,13 @@ if st.button("Generate Report"):
         try:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-            table_data = get_table_data(start_date, end_date, court_type, court_id)
+
+            # Display a spinner during data fetching
+            with st.spinner("Fetching data..."):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                table_data = loop.run_until_complete(get_table_data(start_date, end_date, court_type, court_id))
+
             if table_data:
                 df = pd.DataFrame(table_data)
                 df.columns = ["क्र.सं.", "दर्ता नं.", "मुद्दा नं.", "दर्ता मिति", "मुद्दाको किसिम", "मुद्दाको नाम", "वादी", "प्रतिबादी", "फैसला मिति", "पूर्ण पाठ"]
