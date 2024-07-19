@@ -3,8 +3,8 @@ import aiohttp
 import asyncio
 from bs4 import BeautifulSoup
 import pandas as pd
-from datetime import datetime
 import base64
+import re
 import warnings
 
 # Ignore warnings for simplicity
@@ -140,6 +140,9 @@ st.title('Supreme Court Data Scraper')
 start_date_str = st.text_input("Enter Start Date (YYYY-MM-DD, BS)")
 end_date_str = st.text_input("Enter End Date (YYYY-MM-DD, BS)")
 
+# Regular expression for date validation
+date_regex = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+
 court_type_display = st.selectbox("Select Court Type", options=list(court_type_display_map.values()))
 
 # Get the actual court type key based on display name
@@ -180,10 +183,10 @@ async def fetch_data(session, date, court_type, court_id):
 async def get_table_data(start_date, end_date, court_type, court_id):
     async with aiohttp.ClientSession() as session:
         tasks = []
-        date_range = pd.date_range(start=start_date, end=end_date)
+        # Use text-based dates directly
+        date_range = pd.date_range(start=start_date, end=end_date).strftime('%Y-%m-%d').tolist()
         for faisala_date in date_range:
-            faisala_date_str = faisala_date.strftime('%Y-%m-%d')
-            tasks.append(fetch_data(session, faisala_date_str, court_type, court_id))
+            tasks.append(fetch_data(session, faisala_date, court_type, court_id))
         results = await asyncio.gather(*tasks)
         all_data = [item for sublist in results for item in sublist]
         return all_data
@@ -192,18 +195,17 @@ async def get_table_data(start_date, end_date, court_type, court_id):
 if st.button("Generate Report"):
     if not start_date_str or not end_date_str:
         st.warning("Please enter both start and end dates.")
-    elif not court_type or not court_id:
-        st.warning("Please select both court type and court name.")
+    elif not date_regex.match(start_date_str) or not date_regex.match(end_date_str):
+        st.warning("Invalid date format. Please enter dates in YYYY-MM-DD format.")
+    elif not court_id:
+        st.warning("Please select a valid court.")
     else:
         try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-
             # Use Streamlit's asyncio feature to fetch data and show spinner
             with st.spinner("Fetching data..."):
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
-                table_data = loop.run_until_complete(get_table_data(start_date, end_date, court_type, court_id))
+                table_data = loop.run_until_complete(get_table_data(start_date_str, end_date_str, court_type, court_id))
 
             if table_data:
                 df = pd.DataFrame(table_data)
@@ -215,8 +217,7 @@ if st.button("Generate Report"):
                 b64 = base64.b64encode(excel_bytes).decode()
                 href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="court_data.xlsx">Download Excel file</a>'
                 st.markdown(href, unsafe_allow_html=True)
-                
             else:
                 st.warning("No data found for the specified date range and court parameters.")
-        except ValueError:
-            st.error("Invalid date format. Please enter dates in YYYY-MM-DD format.")
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
