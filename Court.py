@@ -1,61 +1,79 @@
-import asyncio
-import aiohttp
-import ssl
-import certifi
-import logging
+import streamlit as st
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+from datetime import datetime
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+st.title('Supreme Court Data Scraper')
 
-# Function to fetch data from the server
-async def fetch_data(session, url, form_data):
-    retries = 3
-    for attempt in range(retries):
+def get_table_data(start_date, end_date):
+    all_data = []
+    date_range = pd.date_range(start=start_date, end=end_date)
+
+    for faisala_date in date_range:
+        faisala_date = faisala_date.strftime('%Y-%m-%d')
+        url = 'https://supremecourt.gov.np/cp/'
+        form_data = {
+            'court_type': 'A',
+            'court_id': '6',
+            'regno': '',
+            'darta_date': '',
+            'faisala_date': faisala_date,
+            'submit': ''
+        }
+
         try:
-            logging.info(f"Attempt {attempt + 1}: Fetching data from {url}")
-            async with session.post(url, data=form_data, ssl=ssl.create_default_context(cafile=certifi.where())) as response:
-                response.raise_for_status()  # Raise an error for bad status
-                data = await response.text()
-                logging.info(f"Data fetched successfully on attempt {attempt + 1}")
-                return data
-        except aiohttp.ClientConnectorError as e:
-            logging.error(f"ClientConnectorError: {e}")
-            if attempt < retries - 1:
-                logging.info("Retrying...")
-                await asyncio.sleep(1)
-            else:
-                raise
-        except aiohttp.ClientError as e:
-            logging.error(f"ClientError: {e}")
-            raise
+            response = requests.post(url, data=form_data, verify=False)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            st.error(f"Error accessing the website for date {faisala_date}: {e}")
+            continue
 
-# Function to get table data
-async def get_table_data(start_date, end_date, court_type, court_id):
-    url = "https://example.com/api"  # Replace with the actual URL
-    form_data = {
-        "start_date": start_date,
-        "end_date": end_date,
-        "court_type": court_type,
-        "court_id": court_id
-    }
+        soup = BeautifulSoup(response.content, 'html.parser')
+        table = soup.find('table')
 
-    async with aiohttp.ClientSession() as session:
-        data = await fetch_data(session, url, form_data)
-        return data
+        if not table:
+            st.warning(f"No table found for the date {faisala_date}.")
+            continue
 
-def main():
-    start_date = "2081-04-03"  # Example start date in BS format
-    end_date = "2081-04-03"  # Example end date in BS format
-    court_type = "सर्वोच्च अदालत"
-    court_id = "some_court_id"  # Replace with the actual court ID
+        rows = table.find_all('tr')
+        table_data = []
 
-    loop = asyncio.get_event_loop()
-    try:
-        table_data = loop.run_until_complete(get_table_data(start_date, end_date, court_type, court_id))
-        logging.info(f"Table Data: {table_data}")
-        # Here you can process the table_data further or save it to a file
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        for row in rows[1:]:
+            cols = row.find_all('td')
+            cols = [col.text.strip() for col in cols]
+            table_data.append(cols)
 
-if __name__ == "__main__":
-    main()
+        all_data.extend(table_data)
+
+    return all_data
+
+start_date = st.date_input("Enter the start date", value=datetime(2023, 1, 1))
+end_date = st.date_input("Enter the end date", value=datetime(2023, 12, 31))
+
+if st.button("Fetch Data"):
+    if start_date > end_date:
+        st.error("Start date must be before end date.")
+    else:
+        with st.spinner("Fetching data..."):
+            table_data = get_table_data(start_date, end_date)
+        
+        if table_data:
+            df = pd.DataFrame(table_data)
+            df.columns = ["क्र.सं.", "दर्ता नं.", "मुद्दा नं.", "दर्ता मिति", "मुद्दाको किसिम", "मुद्दाको नाम", "वादी", "प्रतिबादी", "फैसला मिति", "पूर्ण पाठ"]
+            st.success("Data fetched successfully!")
+
+            @st.cache
+            def convert_df(df):
+                return df.to_csv(index=False).encode('utf-8')
+
+            csv = convert_df(df)
+            st.download_button(
+                label="Download data as CSV",
+                data=csv,
+                file_name='supreme_court_data.csv',
+                mime='text/csv',
+            )
+        else:
+            st.warning("No data found for the given date range.")
+
