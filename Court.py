@@ -4,9 +4,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 
-st.title('Supreme Court Data Scraper')
-
-def get_table_data(start_date, end_date):
+def get_table_data(start_date, end_date, court_type, court_id):
     all_data = []
     date_range = pd.date_range(start=start_date, end=end_date)
 
@@ -14,8 +12,8 @@ def get_table_data(start_date, end_date):
         faisala_date = faisala_date.strftime('%Y-%m-%d')
         url = 'https://supremecourt.gov.np/cp/'
         form_data = {
-            'court_type': 'A',
-            'court_id': '6',
+            'court_type': court_type,
+            'court_id': court_id,
             'regno': '',
             'darta_date': '',
             'faisala_date': faisala_date,
@@ -48,6 +46,11 @@ def get_table_data(start_date, end_date):
 
     return all_data
 
+st.title('Supreme Court Data Scraper')
+
+court_type = st.selectbox('Select Court Type', ['A', 'S', 'D'])
+court_id = st.selectbox('Select Court ID', ['6', '7', '8', '9'])
+
 start_date = st.date_input("Enter the start date", value=datetime(2023, 1, 1))
 end_date = st.date_input("Enter the end date", value=datetime(2023, 12, 31))
 
@@ -56,14 +59,14 @@ if st.button("Fetch Data"):
         st.error("Start date must be before end date.")
     else:
         with st.spinner("Fetching data..."):
-            table_data = get_table_data(start_date, end_date)
+            table_data = get_table_data(start_date, end_date, court_type, court_id)
         
         if table_data:
             df = pd.DataFrame(table_data)
             df.columns = ["क्र.सं.", "दर्ता नं.", "मुद्दा नं.", "दर्ता मिति", "मुद्दाको किसिम", "मुद्दाको नाम", "वादी", "प्रतिबादी", "फैसला मिति", "पूर्ण पाठ"]
             st.success("Data fetched successfully!")
 
-            @st.cache
+            @st.cache_data
             def convert_df(df):
                 return df.to_csv(index=False).encode('utf-8')
 
@@ -76,4 +79,3 @@ if st.button("Fetch Data"):
             )
         else:
             st.warning("No data found for the given date range.")
-
