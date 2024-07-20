@@ -52,36 +52,42 @@ st.title('Supreme Court Data Scraper')
 court_type = st.selectbox('Select Court Type', ['A', 'S', 'D'])
 court_id = st.selectbox('Select Court ID', ['6', '7', '8', '9'])
 
-start_date = st.date_input("Enter the start date", value=datetime(2023, 1, 1))
-end_date = st.date_input("Enter the end date", value=datetime(2023, 12, 31))
+start_date_str = st.text_input("Enter the start date in YYYY-MM-DD format", value="2023-01-01")
+end_date_str = st.text_input("Enter the end date in YYYY-MM-DD format", value="2023-12-31")
 
 if st.button("Fetch Data"):
-    if start_date > end_date:
-        st.error("Start date must be before end date.")
-    else:
-        with st.spinner("Fetching data..."):
-            table_data = get_table_data(start_date, end_date, court_type, court_id)
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
         
-        if table_data:
-            df = pd.DataFrame(table_data)
-            df.columns = ["क्र.सं.", "दर्ता नं.", "मुद्दा नं.", "दर्ता मिति", "मुद्दाको किसिम", "मुद्दाको नाम", "वादी", "प्रतिबादी", "फैसला मिति", "पूर्ण पाठ"]
-            st.success("Data fetched successfully!")
-
-            @st.cache_data
-            def convert_df_to_excel(df):
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Sheet1')
-                    writer.save()
-                processed_data = output.getvalue()
-                return processed_data
-
-            excel_data = convert_df_to_excel(df)
-            st.download_button(
-                label="Download data as Excel",
-                data=excel_data,
-                file_name='supreme_court_data.xlsx',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            )
+        if start_date > end_date:
+            st.error("Start date must be before end date.")
         else:
-            st.warning("No data found for the given date range.")
+            with st.spinner("Fetching data..."):
+                table_data = get_table_data(start_date, end_date, court_type, court_id)
+            
+            if table_data:
+                df = pd.DataFrame(table_data)
+                df.columns = ["क्र.सं.", "दर्ता नं.", "मुद्दा नं.", "दर्ता मिति", "मुद्दाको किसिम", "मुद्दाको नाम", "वादी", "प्रतिबादी", "फैसला मिति", "पूर्ण पाठ"]
+                st.success("Data fetched successfully!")
+
+                @st.cache_data
+                def convert_df_to_excel(df):
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        df.to_excel(writer, index=False, sheet_name='Sheet1')
+                        writer.save()
+                    processed_data = output.getvalue()
+                    return processed_data
+
+                excel_data = convert_df_to_excel(df)
+                st.download_button(
+                    label="Download data as Excel",
+                    data=excel_data,
+                    file_name='supreme_court_data.xlsx',
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                )
+            else:
+                st.warning("No data found for the given date range.")
+    except ValueError:
+        st.error("Invalid date format. Please enter the date in YYYY-MM-DD format.")
