@@ -2,5 +2,4 @@ streamlit
 aiohttp
 beautifulsoup4
 pandas
-openpyxl
-certifi
+lxml
