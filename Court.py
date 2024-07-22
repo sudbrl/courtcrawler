@@ -5,9 +5,10 @@ import pandas as pd
 from datetime import datetime
 from io import BytesIO
 
+# Function to scrape table data from the Supreme Court website
 def get_table_data(start_date, end_date, court_type, court_id):
     all_data = []
-    date_range = pd.date_range(start=start_date, end=end_date)
+    date_range = pd.date_range(start=start_date, end=end_date, freq='10D')  # Interval of 10 days
 
     for faisala_date in date_range:
         faisala_date = faisala_date.strftime('%Y-%m-%d')
@@ -47,30 +48,40 @@ def get_table_data(start_date, end_date, court_type, court_id):
 
     return all_data
 
+# Streamlit app title
 st.title('Supreme Court Data Scraper')
 
+# Court type selection
 court_type = st.selectbox('Select Court Type', ['A', 'S', 'D'])
+# Court ID selection
 court_id = st.selectbox('Select Court ID', ['6', '7', '8', '9'])
 
-start_date_str = st.text_input("Enter the start date in YYYY-MM-DD format", value="2023-01-01")
-end_date_str = st.text_input("Enter the end date in YYYY-MM-DD format", value="2023-12-31")
+# Date inputs in text format
+start_date_str = st.text_input("Enter the start date in YYYY-MM-DD format (BS)", value="2080-01-01")
+end_date_str = st.text_input("Enter the end date in YYYY-MM-DD format (BS)", value="2080-12-30")
 
+# Fetch data button
 if st.button("Fetch Data"):
     try:
+        # Parse the input dates
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
         
+        # Check if the start date is before the end date
         if start_date > end_date:
             st.error("Start date must be before end date.")
         else:
+            # Fetch and process the data
             with st.spinner("Fetching data..."):
                 table_data = get_table_data(start_date, end_date, court_type, court_id)
             
             if table_data:
+                # Create DataFrame from the scraped data
                 df = pd.DataFrame(table_data)
                 df.columns = ["क्र.सं.", "दर्ता नं.", "मुद्दा नं.", "दर्ता मिति", "मुद्दाको किसिम", "मुद्दाको नाम", "वादी", "प्रतिबादी", "फैसला मिति", "पूर्ण पाठ"]
                 st.success("Data fetched successfully!")
 
+                # Function to convert DataFrame to Excel format
                 @st.cache_data
                 def convert_df_to_excel(df):
                     output = BytesIO()
@@ -80,6 +91,7 @@ if st.button("Fetch Data"):
                     processed_data = output.getvalue()
                     return processed_data
 
+                # Convert the DataFrame to Excel and provide a download button
                 excel_data = convert_df_to_excel(df)
                 st.download_button(
                     label="Download data as Excel",
@@ -90,4 +102,4 @@ if st.button("Fetch Data"):
             else:
                 st.warning("No data found for the given date range.")
     except ValueError:
-        st.error("Invalid date format. Please enter the date in YYYY-MM-DD format.")
+        st.error("Invalid date format. Please enter the date in YYYY-MM-DD format (BS).")
