@@ -1,6 +1,5 @@
 import streamlit as st
-import aiohttp
-import asyncio
+import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import base64
@@ -129,6 +128,39 @@ def get_court_names(court_type):
         return court_map[court_type]
     return {}
 
+# Function to fetch table data from the Supreme Court website
+def fetch_data(date, court_type, court_id):
+    url = 'https://supremecourt.gov.np/cp/'
+    form_data = {
+        'court_type': court_type,
+        'court_id': court_id,
+        'regno': '',
+        'darta_date': '',
+        'faisala_date': date,
+        'submit': ''
+    }
+    response = requests.post(url, data=form_data)
+    if response.status_code == 200:
+        content = response.text
+        soup = BeautifulSoup(content, 'html.parser')
+        table = soup.find('table')
+        if table:
+            rows = table.find_all('tr')
+            table_data = []
+            for row in rows[1:]:
+                cols = row.find_all('td')
+                cols = [col.text.strip() for col in cols]
+                table_data.append(cols)
+            return table_data
+    return []
+
+def get_table_data(start_date, end_date, court_type, court_id):
+    date_range = pd.date_range(start=start_date, end=end_date).strftime('%Y-%m-%d').tolist()
+    all_data = []
+    for faisala_date in date_range:
+        all_data.extend(fetch_data(faisala_date, court_type, court_id))
+    return all_data
+
 # Streamlit UI
 st.title('Supreme Court Data Scraper')
 
@@ -147,43 +179,6 @@ court_name_to_id = {v: k for k, v in court_names.items()}
 court_name = st.selectbox("Select Court Name", options=list(court_name_to_id.keys()))
 court_id = court_name_to_id[court_name] if court_name else None
 
-# Function to fetch table data from the Supreme Court website asynchronously
-async def fetch_data(session, date, court_type, court_id):
-    url = 'https://supremecourt.gov.np/cp/'
-    form_data = {
-        'court_type': court_type,
-        'court_id': court_id,
-        'regno': '',
-        'darta_date': '',
-        'faisala_date': date,
-        'submit': ''
-    }
-    async with session.post(url, data=form_data) as response:
-        if response.status == 200:
-            content = await response.text()
-            soup = BeautifulSoup(content, 'html.parser')
-            table = soup.find('table')
-            if table:
-                rows = table.find_all('tr')
-                table_data = []
-                for row in rows[1:]:
-                    cols = row.find_all('td')
-                    cols = [col.text.strip() for col in cols]
-                    table_data.append(cols)
-                return table_data
-        return []
-
-async def get_table_data(start_date, end_date, court_type, court_id):
-    async with aiohttp.ClientSession() as session:
-        tasks = []
-        # Use text-based dates directly
-        date_range = pd.date_range(start=start_date, end=end_date).strftime('%Y-%m-%d').tolist()
-        for faisala_date in date_range:
-            tasks.append(fetch_data(session, faisala_date, court_type, court_id))
-        results = await asyncio.gather(*tasks)
-        all_data = [item for sublist in results for item in sublist]
-        return all_data
-
 # Validate and process data on button click
 if st.button("Generate Report"):
     if not start_date_str or not end_date_str:
@@ -192,10 +187,9 @@ if st.button("Generate Report"):
         st.warning("Please select both court type and court name.")
     else:
         try:
-            # Use Streamlit's asyncio feature to fetch data and show spinner
+            # Use Streamlit's spinner to show progress
             with st.spinner("Fetching data..."):
-                loop = asyncio.get_event_loop()
-                table_data = loop.run_until_complete(get_table_data(start_date_str, end_date_str, court_type, court_id))
+                table_data = get_table_data(start_date_str, end_date_str, court_type, court_id)
 
             if table_data:
                 df = pd.DataFrame(table_data)
