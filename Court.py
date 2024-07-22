@@ -4,6 +4,10 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import base64
 import io
+import urllib3
+
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Define the court list
 court_map = {
@@ -139,7 +143,7 @@ def fetch_data(date, court_type, court_id):
         'faisala_date': date,
         'submit': ''
     }
-    response = requests.post(url, data=form_data)
+    response = requests.post(url, data=form_data, verify=False)  # Disable SSL verification
     if response.status_code == 200:
         content = response.text
         soup = BeautifulSoup(content, 'html.parser')
@@ -163,6 +167,9 @@ def get_table_data(start_date, end_date, court_type, court_id):
 
 # Streamlit UI
 st.title('Supreme Court Data Scraper')
+
+# Add a warning about SSL verification
+st.warning("Warning: SSL certificate verification is disabled. This may pose security risks.")
 
 # Input fields for start date, end date, court type, and court ID
 start_date_str = st.text_input("Enter Start Date (YYYY-MM-DD, BS)")
