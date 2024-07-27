@@ -6,3 +6,4 @@ lxml
 xlsxwriter
 urllib3
 openpyxl
+certifi
