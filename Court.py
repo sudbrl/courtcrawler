@@ -7,6 +7,7 @@ from datetime import datetime
 import base64
 import warnings
 import ssl
+import os
 
 # Ignore warnings for simplicity
 warnings.filterwarnings("ignore")
@@ -72,7 +73,13 @@ async def fetch_data(session, date, court_type, court_id):
         'faisala_date': date,
         'submit': ''
     }
-    ssl_context = ssl.create_default_context(cafile='supreme_court.pem')
+    
+    # Ensure the SSL certificate file exists
+    pem_file = 'supreme_court.pem'
+    if not os.path.isfile(pem_file):
+        raise FileNotFoundError(f"{pem_file} not found")
+
+    ssl_context = ssl.create_default_context(cafile=pem_file)
     async with session.post(url, data=form_data, ssl=ssl_context) as response:
         if response.status == 200:
             content = await response.text()
