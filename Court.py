@@ -7,7 +7,6 @@ from datetime import datetime
 import base64
 import warnings
 import ssl
-import certifi
 
 # Ignore warnings for simplicity
 warnings.filterwarnings("ignore")
@@ -73,7 +72,7 @@ async def fetch_data(session, date, court_type, court_id):
         'faisala_date': date,
         'submit': ''
     }
-    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    ssl_context = ssl.create_default_context(cafile='supreme_court.pem')
     async with session.post(url, data=form_data, ssl=ssl_context) as response:
         if response.status == 200:
             content = await response.text()
