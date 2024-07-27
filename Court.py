@@ -5,10 +5,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
 import base64
-import warnings
 
-# Ignore warnings for simplicity
-warnings.filterwarnings("ignore")
 
 # Define the court list
 court_map = {
